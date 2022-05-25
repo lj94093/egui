@@ -1,32 +1,14 @@
-//! Example how to use pure `egui_glium` without [`epi`].
+//! Example how to use `egui_glium`.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use glium::glutin;
 
-fn create_display(event_loop: &glutin::event_loop::EventLoop<()>) -> glium::Display {
-    let window_builder = glutin::window::WindowBuilder::new()
-        .with_resizable(true)
-        .with_inner_size(glutin::dpi::LogicalSize {
-            width: 800.0,
-            height: 600.0,
-        })
-        .with_title("egui_glium example");
-
-    let context_builder = glutin::ContextBuilder::new()
-        .with_depth_buffer(0)
-        .with_srgb(true)
-        .with_stencil_buffer(0)
-        .with_vsync(true);
-
-    glium::Display::new(window_builder, context_builder, event_loop).unwrap()
-}
-
 fn main() {
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let display = create_display(&event_loop);
 
-    let mut egui_glium = egui_glium::EguiGlium::new(&display);
+    let mut egui_glium = egui_glium::EguiGlium::new(&display, &event_loop);
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
@@ -82,10 +64,28 @@ fn main() {
 
                 egui_glium.on_event(&event);
 
-                display.gl_window().window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
+                display.gl_window().window().request_redraw(); // TODO(emilk): ask egui if the events warrants a repaint instead
             }
 
             _ => (),
         }
     });
+}
+
+fn create_display(event_loop: &glutin::event_loop::EventLoop<()>) -> glium::Display {
+    let window_builder = glutin::window::WindowBuilder::new()
+        .with_resizable(true)
+        .with_inner_size(glutin::dpi::LogicalSize {
+            width: 800.0,
+            height: 600.0,
+        })
+        .with_title("egui_glium example");
+
+    let context_builder = glutin::ContextBuilder::new()
+        .with_depth_buffer(0)
+        .with_srgb(true)
+        .with_stencil_buffer(0)
+        .with_vsync(true);
+
+    glium::Display::new(window_builder, context_builder, event_loop).unwrap()
 }

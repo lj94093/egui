@@ -57,7 +57,7 @@ pub enum SliderOrientation {
 /// # });
 /// ```
 ///
-/// The default `Slider` size is set by [`crate::style::Spacing::slider_width`].
+/// The default [`Slider`] size is set by [`crate::style::Spacing::slider_width`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Slider<'a> {
     get_set_value: GetSetValue<'a>,
@@ -212,7 +212,7 @@ impl<'a> Slider<'a> {
         self
     }
 
-    // TODO: we should also have a "min precision".
+    // TODO(emilk): we should also have a "min precision".
     /// Set a minimum number of decimals to display.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
@@ -221,7 +221,7 @@ impl<'a> Slider<'a> {
         self
     }
 
-    // TODO: we should also have a "max precision".
+    // TODO(emilk): we should also have a "max precision".
     /// Set a maximum number of decimals to display.
     /// Values will also be rounded to this number of decimals.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
@@ -454,11 +454,15 @@ impl<'a> Slider<'a> {
     }
 
     fn value_ui(&mut self, ui: &mut Ui, position_range: RangeInclusive<f32>) -> Response {
-        // If `DragValue` is controlled from the keyboard and `step` is defined, set speed to `step`
-        let change = ui.input().num_presses(Key::ArrowUp) as i32
-            + ui.input().num_presses(Key::ArrowRight) as i32
-            - ui.input().num_presses(Key::ArrowDown) as i32
-            - ui.input().num_presses(Key::ArrowLeft) as i32;
+        // If [`DragValue`] is controlled from the keyboard and `step` is defined, set speed to `step`
+        let change = {
+            // Hold one lock rather than 4 (see https://github.com/emilk/egui/pull/1380).
+            let input = ui.input();
+
+            input.num_presses(Key::ArrowUp) as i32 + input.num_presses(Key::ArrowRight) as i32
+                - input.num_presses(Key::ArrowDown) as i32
+                - input.num_presses(Key::ArrowLeft) as i32
+        };
         let speed = match self.step {
             Some(step) if change != 0 => step,
             _ => self.current_gradient(&position_range),
@@ -481,7 +485,7 @@ impl<'a> Slider<'a> {
 
     /// delta(value) / delta(points)
     fn current_gradient(&mut self, position_range: &RangeInclusive<f32>) -> f64 {
-        // TODO: handle clamping
+        // TODO(emilk): handle clamping
         let value = self.get_value();
         let value_from_pos =
             |position: f32| self.value_from_position(position, position_range.clone());
@@ -505,7 +509,7 @@ impl<'a> Slider<'a> {
                 || value_response.has_focus()
                 || value_response.lost_focus()
             {
-                // Use the `DragValue` id as the id of the whole widget,
+                // Use the [`DragValue`] id as the id of the whole widget,
                 // so that the focus events work as expected.
                 response = value_response.union(response);
             } else {

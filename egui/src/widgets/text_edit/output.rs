@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-/// The output from a `TextEdit`.
+/// The output from a [`TextEdit`](crate::TextEdit).
 pub struct TextEditOutput {
     /// The interaction response.
     pub response: crate::Response,
@@ -21,4 +21,4 @@ pub struct TextEditOutput {
     pub cursor_range: Option<super::CursorRange>,
 }
 
-// TODO: add `output.paint` and `output.store` and split out that code from `TextEdit::show`.
+// TODO(emilk): add `output.paint` and `output.store` and split out that code from `TextEdit::show`.

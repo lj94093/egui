@@ -1,9 +1,6 @@
-# Changelog for egui_web
-All notable changes to the `egui_web` integration will be noted in this file.
+# Legacy changelog for egui_web
+Between versions 0.17 and 0.18, `egui_web` was absorbed into `eframe`. Most of this changelog was then merged into [the `eframe` changelog](../eframe/CHANGELOG.md). This changelog is now only kept for historical reasons.
 
-
-## Unreleased
-* egui code will no longer be called after panic ([#1306](https://github.com/emilk/egui/pull/1306))
 
 
 ## 0.17.0 - 2022-02-22

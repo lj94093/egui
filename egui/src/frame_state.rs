@@ -2,21 +2,28 @@ use std::ops::RangeInclusive;
 
 use crate::*;
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct TooltipRect {
+    pub id: Id,
+    pub rect: Rect,
+    pub count: usize,
+}
+
 /// State that is collected during a frame and then cleared.
 /// Short-term (single frame) memory.
 #[derive(Clone)]
 pub(crate) struct FrameState {
-    /// All `Id`s that were used this frame.
-    /// Used to debug `Id` clashes of widgets.
+    /// All [`Id`]s that were used this frame.
+    /// Used to debug [`Id`] clashes of widgets.
     pub(crate) used_ids: IdMap<Rect>,
 
     /// Starts off as the screen_rect, shrinks as panels are added.
-    /// The `CentralPanel` does not change this.
+    /// The [`CentralPanel`] does not change this.
     /// This is the area available to Window's.
     pub(crate) available_rect: Rect,
 
     /// Starts off as the screen_rect, shrinks as panels are added.
-    /// The `CentralPanel` retracts from this.
+    /// The [`CentralPanel`] retracts from this.
     pub(crate) unused_rect: Rect,
 
     /// How much space is used by panels.
@@ -25,10 +32,13 @@ pub(crate) struct FrameState {
     /// If a tooltip has been shown this frame, where was it?
     /// This is used to prevent multiple tooltips to cover each other.
     /// Initialized to `None` at the start of each frame.
-    pub(crate) tooltip_rect: Option<(Id, Rect, usize)>,
+    pub(crate) tooltip_rect: Option<TooltipRect>,
 
-    /// Cleared by the first `ScrollArea` that makes use of it.
-    pub(crate) scroll_delta: Vec2, // TODO: move to a Mutex inside of `InputState` ?
+    /// Set to [`InputState::scroll_delta`] on the start of each frame.
+    ///
+    /// Cleared by the first [`ScrollArea`] that makes use of it.
+    pub(crate) scroll_delta: Vec2, // TODO(emilk): move to `InputState` ?
+
     /// horizontal, vertical
     pub(crate) scroll_target: [Option<(RangeInclusive<f32>, Option<Align>)>; 2],
 }

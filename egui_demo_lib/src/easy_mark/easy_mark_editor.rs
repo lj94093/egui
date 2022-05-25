@@ -29,16 +29,12 @@ impl Default for EasyMarkEditor {
     }
 }
 
-impl epi::App for EasyMarkEditor {
-    fn name(&self) -> &str {
-        "🖹 EasyMark editor"
-    }
-
-    fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
+impl EasyMarkEditor {
+    pub fn panels(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::bottom("easy_mark_bottom").show(ctx, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
             ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
-                ui.add(crate::__egui_github_link_file!())
+                ui.add(crate::egui_github_link_file!())
             })
         });
 
@@ -46,10 +42,8 @@ impl epi::App for EasyMarkEditor {
             self.ui(ui);
         });
     }
-}
 
-impl EasyMarkEditor {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    pub fn ui(&mut self, ui: &mut egui::Ui) {
         egui::Grid::new("controls").show(ui, |ui| {
             ui.checkbox(&mut self.highlight_editor, "Highlight editor");
             egui::reset_button(ui, self);
@@ -70,7 +64,7 @@ impl EasyMarkEditor {
                 ScrollArea::vertical()
                     .id_source("rendered")
                     .show(&mut columns[1], |ui| {
-                        // TODO: we can save some more CPU by caching the rendered output.
+                        // TODO(emilk): we can save some more CPU by caching the rendered output.
                         crate::easy_mark::easy_mark(ui, &self.code);
                     });
             });
@@ -89,7 +83,7 @@ impl EasyMarkEditor {
         let response = if self.highlight_editor {
             let mut layouter = |ui: &egui::Ui, easymark: &str, wrap_width: f32| {
                 let mut layout_job = highlighter.highlight(ui.style(), easymark);
-                layout_job.wrap_width = wrap_width;
+                layout_job.wrap.max_width = wrap_width;
                 ui.fonts().layout_job(layout_job)
             };
 
@@ -200,7 +194,7 @@ Goals:
 2. easy to learn
 3. similar to markdown
 
-[The reference parser](https://github.com/emilk/egui/blob/master/egui/src/experimental/easy_mark_parser.rs) is \~250 lines of code, using only the Rust standard library. The parser uses no look-ahead or recursion.
+[The reference parser](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/easy_mark/easy_mark_parser.rs) is \~250 lines of code, using only the Rust standard library. The parser uses no look-ahead or recursion.
 
 There is never more than one way to accomplish the same thing, and each special character is only used for one thing. For instance `*` is used for *strong* and `-` is used for bullet lists. There is no alternative way to specify the *strong* style or getting a bullet list.
 

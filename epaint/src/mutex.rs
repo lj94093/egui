@@ -1,16 +1,13 @@
 //! Helper module that wraps some Mutex types with different implementations.
-//!
-//! When the `single_threaded` feature is on the mutexes will panic when locked from different threads.
-
-#[cfg(not(any(feature = "single_threaded", feature = "multi_threaded")))]
-compile_error!("Either feature \"single_threaded\" or \"multi_threaded\" must be enabled.");
 
 // ----------------------------------------------------------------------------
 
-#[cfg(feature = "multi_threaded")]
+#[cfg(not(target_arch = "wasm32"))]
 #[cfg(not(debug_assertions))]
 mod mutex_impl {
-    /// Provides interior mutability. Only thread-safe if the `multi_threaded` feature is enabled.
+    /// Provides interior mutability.
+    ///
+    /// Uses `parking_lot` crate on native targets, and `atomic_refcell` on `wasm32` targets.
     #[derive(Default)]
     pub struct Mutex<T>(parking_lot::Mutex<T>);
 
@@ -30,10 +27,12 @@ mod mutex_impl {
     }
 }
 
-#[cfg(feature = "multi_threaded")]
+#[cfg(not(target_arch = "wasm32"))]
 #[cfg(debug_assertions)]
 mod mutex_impl {
-    /// Provides interior mutability. Only thread-safe if the `multi_threaded` feature is enabled.
+    /// Provides interior mutability.
+    ///
+    /// Uses `parking_lot` crate on native targets, and `atomic_refcell` on `wasm32` targets.
     #[derive(Default)]
     pub struct Mutex<T>(parking_lot::Mutex<T>);
 
@@ -111,7 +110,8 @@ mod mutex_impl {
     }
 }
 
-#[cfg(feature = "multi_threaded")]
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "deadlock_detection"))]
 mod rw_lock_impl {
     /// The lock you get from [`RwLock::read`].
     pub use parking_lot::MappedRwLockReadGuard as RwLockReadGuard;
@@ -119,7 +119,9 @@ mod rw_lock_impl {
     /// The lock you get from [`RwLock::write`].
     pub use parking_lot::MappedRwLockWriteGuard as RwLockWriteGuard;
 
-    /// Provides interior mutability. Only thread-safe if the `multi_threaded` feature is enabled.
+    /// Provides interior mutability.
+    ///
+    /// Uses `parking_lot` crate on native targets, and `atomic_refcell` on `wasm32` targets.
     #[derive(Default)]
     pub struct RwLock<T>(parking_lot::RwLock<T>);
 
@@ -141,18 +143,90 @@ mod rw_lock_impl {
     }
 }
 
-#[cfg(feature = "multi_threaded")]
-mod arc_impl {
-    pub use std::sync::Arc;
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "deadlock_detection")]
+mod rw_lock_impl {
+    /// The lock you get from [`RwLock::read`].
+    pub use parking_lot::MappedRwLockReadGuard as RwLockReadGuard;
+
+    /// The lock you get from [`RwLock::write`].
+    pub use parking_lot::MappedRwLockWriteGuard as RwLockWriteGuard;
+
+    /// Provides interior mutability.
+    ///
+    /// Uses `parking_lot` crate on native targets, and `atomic_refcell` on `wasm32` targets.
+    #[derive(Default)]
+    pub struct RwLock<T> {
+        lock: parking_lot::RwLock<T>,
+        last_lock: parking_lot::Mutex<backtrace::Backtrace>,
+    }
+
+    impl<T> RwLock<T> {
+        pub fn new(val: T) -> Self {
+            Self {
+                lock: parking_lot::RwLock::new(val),
+                last_lock: Default::default(),
+            }
+        }
+
+        pub fn read(&self) -> RwLockReadGuard<'_, T> {
+            if self.lock.is_locked_exclusive() {
+                panic!(
+                    "{} DEAD-LOCK DETECTED! Previous lock held at:\n{}\n\n",
+                    std::any::type_name::<Self>(),
+                    format_backtrace(&mut self.last_lock.lock())
+                );
+            }
+            *self.last_lock.lock() = make_backtrace();
+            parking_lot::RwLockReadGuard::map(self.lock.read(), |v| v)
+        }
+
+        pub fn write(&self) -> RwLockWriteGuard<'_, T> {
+            if self.lock.is_locked() {
+                panic!(
+                    "{} DEAD-LOCK DETECTED! Previous lock held at:\n{}\n\n",
+                    std::any::type_name::<Self>(),
+                    format_backtrace(&mut self.last_lock.lock())
+                );
+            }
+            *self.last_lock.lock() = make_backtrace();
+            parking_lot::RwLockWriteGuard::map(self.lock.write(), |v| v)
+        }
+    }
+
+    fn make_backtrace() -> backtrace::Backtrace {
+        backtrace::Backtrace::new_unresolved()
+    }
+
+    fn format_backtrace(backtrace: &mut backtrace::Backtrace) -> String {
+        backtrace.resolve();
+
+        let stacktrace = format!("{:?}", backtrace);
+
+        // Remove irrelevant parts of the stacktrace:
+        let end_offset = stacktrace
+            .find("std::sys_common::backtrace::__rust_begin_short_backtrace")
+            .unwrap_or(stacktrace.len());
+        let stacktrace = &stacktrace[..end_offset];
+
+        let first_interesting_function = "epaint::mutex::rw_lock_impl::make_backtrace\n";
+        if let Some(start_offset) = stacktrace.find(first_interesting_function) {
+            stacktrace[start_offset + first_interesting_function.len()..].to_owned()
+        } else {
+            stacktrace.to_owned()
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
 
-#[cfg(not(feature = "multi_threaded"))]
+#[cfg(target_arch = "wasm32")]
 mod mutex_impl {
     // `atomic_refcell` will panic if multiple threads try to access the same value
 
-    /// Provides interior mutability. Only thread-safe if the `multi_threaded` feature is enabled.
+    /// Provides interior mutability.
+    ///
+    /// Uses `parking_lot` crate on native targets, and `atomic_refcell` on `wasm32` targets.
     #[derive(Default)]
     pub struct Mutex<T>(atomic_refcell::AtomicRefCell<T>);
 
@@ -173,7 +247,7 @@ mod mutex_impl {
     }
 }
 
-#[cfg(not(feature = "multi_threaded"))]
+#[cfg(target_arch = "wasm32")]
 mod rw_lock_impl {
     // `atomic_refcell` will panic if multiple threads try to access the same value
 
@@ -183,7 +257,9 @@ mod rw_lock_impl {
     /// The lock you get from [`RwLock::write`].
     pub use atomic_refcell::AtomicRefMut as RwLockWriteGuard;
 
-    /// Provides interior mutability. Only thread-safe if the `multi_threaded` feature is enabled.
+    /// Provides interior mutability.
+    ///
+    /// Uses `parking_lot` crate on native targets, and `atomic_refcell` on `wasm32` targets.
     #[derive(Default)]
     pub struct RwLock<T>(atomic_refcell::AtomicRefCell<T>);
 
@@ -206,15 +282,8 @@ mod rw_lock_impl {
     }
 }
 
-#[cfg(not(feature = "multi_threaded"))]
-mod arc_impl {
-    // pub use std::rc::Rc as Arc; // TODO(emilk): optimize single threaded code by using `Rc` instead of `Arc`.
-    pub use std::sync::Arc;
-}
-
 // ----------------------------------------------------------------------------
 
-pub use arc_impl::Arc;
 pub use mutex_impl::{Mutex, MutexGuard};
 pub use rw_lock_impl::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 

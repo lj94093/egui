@@ -15,85 +15,6 @@
 //! For that, use something else ([`glam`](https://docs.rs/glam), [`nalgebra`](https://docs.rs/nalgebra), …)
 //! and enable the `mint` feature flag in `emath` to enable implicit conversion to/from `emath`.
 
-// Forbid warnings in release builds:
-#![cfg_attr(not(debug_assertions), deny(warnings))]
-#![forbid(unsafe_code)]
-#![warn(
-    clippy::all,
-    clippy::await_holding_lock,
-    clippy::char_lit_as_u8,
-    clippy::checked_conversions,
-    clippy::dbg_macro,
-    clippy::debug_assert_with_mut_call,
-    clippy::disallowed_method,
-    clippy::doc_markdown,
-    clippy::empty_enum,
-    clippy::enum_glob_use,
-    clippy::exit,
-    clippy::expl_impl_clone_on_copy,
-    clippy::explicit_deref_methods,
-    clippy::explicit_into_iter_loop,
-    clippy::fallible_impl_from,
-    clippy::filter_map_next,
-    clippy::flat_map_option,
-    clippy::float_cmp_const,
-    clippy::fn_params_excessive_bools,
-    clippy::from_iter_instead_of_collect,
-    clippy::if_let_mutex,
-    clippy::implicit_clone,
-    clippy::imprecise_flops,
-    clippy::inefficient_to_string,
-    clippy::invalid_upcast_comparisons,
-    clippy::large_digit_groups,
-    clippy::large_stack_arrays,
-    clippy::large_types_passed_by_value,
-    clippy::let_unit_value,
-    clippy::linkedlist,
-    clippy::lossy_float_literal,
-    clippy::macro_use_imports,
-    clippy::manual_ok_or,
-    clippy::map_err_ignore,
-    clippy::map_flatten,
-    clippy::map_unwrap_or,
-    clippy::match_on_vec_items,
-    clippy::match_same_arms,
-    clippy::match_wild_err_arm,
-    clippy::match_wildcard_for_single_variants,
-    clippy::mem_forget,
-    clippy::mismatched_target_os,
-    clippy::missing_errors_doc,
-    clippy::missing_safety_doc,
-    clippy::mut_mut,
-    clippy::mutex_integer,
-    clippy::needless_borrow,
-    clippy::needless_continue,
-    clippy::needless_for_each,
-    clippy::needless_pass_by_value,
-    clippy::option_option,
-    clippy::path_buf_push_overwrite,
-    clippy::ptr_as_ptr,
-    clippy::ref_option_ref,
-    clippy::rest_pat_in_fully_bound_structs,
-    clippy::same_functions_in_if_condition,
-    clippy::semicolon_if_nothing_returned,
-    clippy::single_match_else,
-    clippy::string_add_assign,
-    clippy::string_add,
-    clippy::string_lit_as_bytes,
-    clippy::string_to_string,
-    clippy::todo,
-    clippy::trait_duplication_in_bounds,
-    clippy::unimplemented,
-    clippy::unnested_or_patterns,
-    clippy::unused_self,
-    clippy::useless_transmute,
-    clippy::verbose_file_reads,
-    clippy::zero_sized_map_values,
-    future_incompatible,
-    nonstandard_style,
-    rust_2018_idioms,
-    rustdoc::missing_crate_level_docs
-)]
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
@@ -224,7 +145,7 @@ pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<u
     let min_decimals = min_decimals.min(max_decimals);
 
     if min_decimals != max_decimals {
-        // Ugly/slow way of doing this. TODO: clean up precision.
+        // Ugly/slow way of doing this. TODO(emilk): clean up precision.
         for decimals in min_decimals..max_decimals {
             let text = format!("{:.*}", decimals, value);
             let epsilon = 16.0 * f32::EPSILON; // margin large enough to handle most peoples round-tripping needs
@@ -310,7 +231,7 @@ fn test_remap() {
 
 // ----------------------------------------------------------------------------
 
-/// Extends `f32`, `Vec2` etc with `at_least` and `at_most` as aliases for `max` and `min`.
+/// Extends `f32`, [`Vec2`] etc with `at_least` and `at_most` as aliases for `max` and `min`.
 pub trait NumExt {
     /// More readable version of `self.max(lower_limit)`
     fn at_least(self, lower_limit: Self) -> Self;
@@ -334,9 +255,20 @@ macro_rules! impl_num_ext {
     };
 }
 
+impl_num_ext!(u8);
+impl_num_ext!(u16);
+impl_num_ext!(u32);
+impl_num_ext!(u64);
+impl_num_ext!(u128);
+impl_num_ext!(usize);
+impl_num_ext!(i8);
+impl_num_ext!(i16);
+impl_num_ext!(i32);
+impl_num_ext!(i64);
+impl_num_ext!(i128);
+impl_num_ext!(isize);
 impl_num_ext!(f32);
 impl_num_ext!(f64);
-impl_num_ext!(usize);
 impl_num_ext!(Vec2);
 impl_num_ext!(Pos2);
 

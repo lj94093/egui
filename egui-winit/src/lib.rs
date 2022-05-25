@@ -3,96 +3,28 @@
 //! The library translates winit events to egui, handled copy/paste,
 //! updates the cursor, open links clicked in egui, etc.
 
-#![forbid(unsafe_code)]
-#![warn(
-    clippy::all,
-    clippy::await_holding_lock,
-    clippy::char_lit_as_u8,
-    clippy::checked_conversions,
-    clippy::dbg_macro,
-    clippy::debug_assert_with_mut_call,
-    clippy::disallowed_method,
-    clippy::doc_markdown,
-    clippy::empty_enum,
-    clippy::enum_glob_use,
-    clippy::exit,
-    clippy::expl_impl_clone_on_copy,
-    clippy::explicit_deref_methods,
-    clippy::explicit_into_iter_loop,
-    clippy::fallible_impl_from,
-    clippy::filter_map_next,
-    clippy::flat_map_option,
-    clippy::float_cmp_const,
-    clippy::fn_params_excessive_bools,
-    clippy::from_iter_instead_of_collect,
-    clippy::if_let_mutex,
-    clippy::implicit_clone,
-    clippy::imprecise_flops,
-    clippy::inefficient_to_string,
-    clippy::invalid_upcast_comparisons,
-    clippy::large_digit_groups,
-    clippy::large_stack_arrays,
-    clippy::large_types_passed_by_value,
-    clippy::let_unit_value,
-    clippy::linkedlist,
-    clippy::lossy_float_literal,
-    clippy::macro_use_imports,
-    clippy::manual_ok_or,
-    clippy::map_err_ignore,
-    clippy::map_flatten,
-    clippy::map_unwrap_or,
-    clippy::match_on_vec_items,
-    clippy::match_same_arms,
-    clippy::match_wild_err_arm,
-    clippy::match_wildcard_for_single_variants,
-    clippy::mem_forget,
-    clippy::mismatched_target_os,
-    clippy::missing_errors_doc,
-    clippy::missing_safety_doc,
-    clippy::mut_mut,
-    clippy::mutex_integer,
-    clippy::needless_borrow,
-    clippy::needless_continue,
-    clippy::needless_for_each,
-    clippy::needless_pass_by_value,
-    clippy::option_option,
-    clippy::path_buf_push_overwrite,
-    clippy::ptr_as_ptr,
-    clippy::ref_option_ref,
-    clippy::rest_pat_in_fully_bound_structs,
-    clippy::same_functions_in_if_condition,
-    clippy::semicolon_if_nothing_returned,
-    clippy::single_match_else,
-    clippy::string_add_assign,
-    clippy::string_add,
-    clippy::string_lit_as_bytes,
-    clippy::string_to_string,
-    clippy::todo,
-    clippy::trait_duplication_in_bounds,
-    clippy::unimplemented,
-    clippy::unnested_or_patterns,
-    clippy::unused_self,
-    clippy::useless_transmute,
-    clippy::verbose_file_reads,
-    clippy::zero_sized_map_values,
-    future_incompatible,
-    nonstandard_style,
-    rust_2018_idioms,
-    rustdoc::missing_crate_level_docs
-)]
-#![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
+use std::os::raw::c_void;
+
+pub use egui;
 pub use winit;
 
 pub mod clipboard;
 pub mod screen_reader;
 mod window_settings;
 
-#[cfg(feature = "epi")]
-pub mod epi;
-
 pub use window_settings::WindowSettings;
+
+use winit::event_loop::EventLoopWindowTarget;
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
+use winit::platform::unix::EventLoopWindowTargetExtUnix;
 
 pub fn native_pixels_per_point(window: &winit::window::Window) -> f32 {
     window.scale_factor() as f32
@@ -129,35 +61,44 @@ pub struct State {
 }
 
 impl State {
-    /// Initialize with:
-    /// * `max_texture_side`: e.g. `GL_MAX_TEXTURE_SIZE`
-    /// * the native `pixels_per_point` (dpi scaling).
-    pub fn new(max_texture_side: usize, window: &winit::window::Window) -> Self {
-        Self::from_pixels_per_point(max_texture_side, native_pixels_per_point(window))
+    pub fn new<T>(event_loop: &EventLoopWindowTarget<T>) -> Self {
+        Self::new_with_wayland_display(get_wayland_display(event_loop))
     }
 
-    /// Initialize with:
-    /// * `max_texture_side`: e.g. `GL_MAX_TEXTURE_SIZE`
-    /// * the given `pixels_per_point` (dpi scaling).
-    pub fn from_pixels_per_point(max_texture_side: usize, pixels_per_point: f32) -> Self {
+    pub fn new_with_wayland_display(wayland_display: Option<*mut c_void>) -> Self {
         Self {
             start_time: instant::Instant::now(),
-            egui_input: egui::RawInput {
-                pixels_per_point: Some(pixels_per_point),
-                max_texture_side: Some(max_texture_side),
-                ..Default::default()
-            },
+            egui_input: Default::default(),
             pointer_pos_in_points: None,
             any_pointer_button_down: false,
             current_cursor_icon: egui::CursorIcon::Default,
-            current_pixels_per_point: pixels_per_point,
+            current_pixels_per_point: 1.0,
 
-            clipboard: Default::default(),
+            clipboard: clipboard::Clipboard::new(wayland_display),
             screen_reader: screen_reader::ScreenReader::default(),
 
             simulate_touch_screen: false,
             pointer_touch_id: None,
         }
+    }
+
+    /// Call this once a graphics context has been created to update the maximum texture dimensions
+    /// that egui will use.
+    pub fn set_max_texture_side(&mut self, max_texture_side: usize) {
+        self.egui_input.max_texture_side = Some(max_texture_side);
+    }
+
+    /// Call this when a new native Window is created for rendering to initialize the `pixels_per_point`
+    /// for that window.
+    ///
+    /// In particular, on Android it is necessary to call this after each `Resumed` lifecycle
+    /// event, each time a new native window is created.
+    ///
+    /// Once this has been initialized for a new window then this state will be maintained by handling
+    /// [`winit::event::WindowEvent::ScaleFactorChanged`] events.
+    pub fn set_pixels_per_point(&mut self, pixels_per_point: f32) {
+        self.egui_input.pixels_per_point = Some(pixels_per_point);
+        self.current_pixels_per_point = pixels_per_point;
     }
 
     /// The number of physical pixels per logical point,
@@ -489,9 +430,10 @@ impl State {
                     self.egui_input.events.push(egui::Event::Copy);
                 } else if is_paste_command(self.egui_input.modifiers, keycode) {
                     if let Some(contents) = self.clipboard.get() {
-                        self.egui_input
-                            .events
-                            .push(egui::Event::Paste(contents.replace("\r\n", "\n")));
+                        let contents = contents.replace("\r\n", "\n");
+                        if !contents.is_empty() {
+                            self.egui_input.events.push(egui::Event::Paste(contents));
+                        }
                     }
                 }
             }
@@ -530,7 +472,7 @@ impl State {
             open_url,
             copied_text,
             events: _,                    // handled above
-            mutable_text_under_cursor: _, // only used in egui_web
+            mutable_text_under_cursor: _, // only used in eframe web
             text_cursor_pos,
         } = platform_output;
 
@@ -621,6 +563,8 @@ fn translate_mouse_button(button: winit::event::MouseButton) -> Option<egui::Poi
         winit::event::MouseButton::Left => Some(egui::PointerButton::Primary),
         winit::event::MouseButton::Right => Some(egui::PointerButton::Secondary),
         winit::event::MouseButton::Middle => Some(egui::PointerButton::Middle),
+        winit::event::MouseButton::Other(1) => Some(egui::PointerButton::Extra1),
+        winit::event::MouseButton::Other(2) => Some(egui::PointerButton::Extra2),
         winit::event::MouseButton::Other(_) => None,
     }
 }
@@ -686,6 +630,27 @@ fn translate_virtual_key_code(key: winit::event::VirtualKeyCode) -> Option<egui:
         VirtualKeyCode::Y => Key::Y,
         VirtualKeyCode::Z => Key::Z,
 
+        VirtualKeyCode::F1 => Key::F1,
+        VirtualKeyCode::F2 => Key::F2,
+        VirtualKeyCode::F3 => Key::F3,
+        VirtualKeyCode::F4 => Key::F4,
+        VirtualKeyCode::F5 => Key::F5,
+        VirtualKeyCode::F6 => Key::F6,
+        VirtualKeyCode::F7 => Key::F7,
+        VirtualKeyCode::F8 => Key::F8,
+        VirtualKeyCode::F9 => Key::F9,
+        VirtualKeyCode::F10 => Key::F10,
+        VirtualKeyCode::F11 => Key::F11,
+        VirtualKeyCode::F12 => Key::F12,
+        VirtualKeyCode::F13 => Key::F13,
+        VirtualKeyCode::F14 => Key::F14,
+        VirtualKeyCode::F15 => Key::F15,
+        VirtualKeyCode::F16 => Key::F16,
+        VirtualKeyCode::F17 => Key::F17,
+        VirtualKeyCode::F18 => Key::F18,
+        VirtualKeyCode::F19 => Key::F19,
+        VirtualKeyCode::F20 => Key::F20,
+
         _ => {
             return None;
         }
@@ -711,10 +676,23 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
         egui::CursorIcon::NotAllowed => Some(winit::window::CursorIcon::NotAllowed),
         egui::CursorIcon::PointingHand => Some(winit::window::CursorIcon::Hand),
         egui::CursorIcon::Progress => Some(winit::window::CursorIcon::Progress),
+
         egui::CursorIcon::ResizeHorizontal => Some(winit::window::CursorIcon::EwResize),
         egui::CursorIcon::ResizeNeSw => Some(winit::window::CursorIcon::NeswResize),
         egui::CursorIcon::ResizeNwSe => Some(winit::window::CursorIcon::NwseResize),
         egui::CursorIcon::ResizeVertical => Some(winit::window::CursorIcon::NsResize),
+
+        egui::CursorIcon::ResizeEast => Some(winit::window::CursorIcon::EResize),
+        egui::CursorIcon::ResizeSouthEast => Some(winit::window::CursorIcon::SeResize),
+        egui::CursorIcon::ResizeSouth => Some(winit::window::CursorIcon::SResize),
+        egui::CursorIcon::ResizeSouthWest => Some(winit::window::CursorIcon::SwResize),
+        egui::CursorIcon::ResizeWest => Some(winit::window::CursorIcon::WResize),
+        egui::CursorIcon::ResizeNorthWest => Some(winit::window::CursorIcon::NwResize),
+        egui::CursorIcon::ResizeNorth => Some(winit::window::CursorIcon::NResize),
+        egui::CursorIcon::ResizeNorthEast => Some(winit::window::CursorIcon::NeResize),
+        egui::CursorIcon::ResizeColumn => Some(winit::window::CursorIcon::ColResize),
+        egui::CursorIcon::ResizeRow => Some(winit::window::CursorIcon::RowResize),
+
         egui::CursorIcon::Text => Some(winit::window::CursorIcon::Text),
         egui::CursorIcon::VerticalText => Some(winit::window::CursorIcon::VerticalText),
         egui::CursorIcon::Wait => Some(winit::window::CursorIcon::Wait),
@@ -722,3 +700,47 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
         egui::CursorIcon::ZoomOut => Some(winit::window::CursorIcon::ZoomOut),
     }
 }
+
+/// Returns a Wayland display handle if the target is running Wayland
+fn get_wayland_display<T>(_event_loop: &EventLoopWindowTarget<T>) -> Option<*mut c_void> {
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
+    {
+        return _event_loop.wayland_display();
+    }
+
+    #[allow(unreachable_code)]
+    {
+        let _ = _event_loop;
+        None
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+/// Profiling macro for feature "puffin"
+#[allow(unused_macros)]
+macro_rules! profile_function {
+    ($($arg: tt)*) => {
+        #[cfg(feature = "puffin")]
+        puffin::profile_function!($($arg)*);
+    };
+}
+#[allow(unused_imports)]
+pub(crate) use profile_function;
+
+/// Profiling macro for feature "puffin"
+#[allow(unused_macros)]
+macro_rules! profile_scope {
+    ($($arg: tt)*) => {
+        #[cfg(feature = "puffin")]
+        puffin::profile_scope!($($arg)*);
+    };
+}
+#[allow(unused_imports)]
+pub(crate) use profile_scope;

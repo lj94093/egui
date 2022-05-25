@@ -1,9 +1,10 @@
 use crate::*;
+use emath::Rot2;
 
 /// An widget to show an image of a given size.
 ///
-/// In order to display an image you must first acquire a [`TextureHandle`]
-/// using [`Context::load_texture`].
+/// In order to display an image you must first acquire a [`TextureHandle`].
+/// This is best done with [`egui_extras::RetainedImage`](https://docs.rs/egui_extras/latest/egui_extras/image/struct.RetainedImage.html) or [`Context::load_texture`].
 ///
 /// ```
 /// struct MyImage {
@@ -14,7 +15,11 @@ use crate::*;
 ///     fn ui(&mut self, ui: &mut egui::Ui) {
 ///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
 ///             // Load the texture only once.
-///             ui.ctx().load_texture("my-image", egui::ColorImage::example())
+///             ui.ctx().load_texture(
+///                 "my-image",
+///                 egui::ColorImage::example(),
+///                 egui::TextureFilter::Linear
+///             )
 ///         });
 ///
 ///         // Show the image:
@@ -36,6 +41,7 @@ pub struct Image {
     bg_fill: Color32,
     tint: Color32,
     sense: Sense,
+    rotation: Option<(Rot2, Vec2)>,
 }
 
 impl Image {
@@ -47,6 +53,7 @@ impl Image {
             bg_fill: Default::default(),
             tint: Color32::WHITE,
             sense: Sense::hover(),
+            rotation: None,
         }
     }
 
@@ -75,6 +82,17 @@ impl Image {
         self.sense = sense;
         self
     }
+
+    /// Rotate the image about an origin by some angle
+    ///
+    /// Positive angle is clockwise.
+    /// Origin is a vector in normalized UV space ((0,0) in top-left, (1,1) bottom right).
+    ///
+    /// To rotate about the center you can pass `Vec2::splat(0.5)` as the origin.
+    pub fn rotate(mut self, angle: f32, origin: Vec2) -> Self {
+        self.rotation = Some((Rot2::from_angle(angle), origin));
+        self
+    }
 }
 
 impl Image {
@@ -88,10 +106,11 @@ impl Image {
             let Self {
                 texture_id,
                 uv,
-                size: _,
+                size,
                 bg_fill,
                 tint,
                 sense: _,
+                rotation,
             } = self;
 
             if *bg_fill != Default::default() {
@@ -101,9 +120,12 @@ impl Image {
             }
 
             {
-                // TODO: builder pattern for Mesh
+                // TODO(emilk): builder pattern for Mesh
                 let mut mesh = Mesh::with_texture(*texture_id);
                 mesh.add_rect_with_uv(rect, *uv, *tint);
+                if let Some((rot, origin)) = rotation {
+                    mesh.rotate(*rot, rect.min + *origin * *size);
+                }
                 ui.painter().add(Shape::mesh(mesh));
             }
         }

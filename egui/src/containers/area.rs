@@ -1,4 +1,4 @@
-//! Area is a `Ui` that has no parent, it floats on the background.
+//! Area is a [`Ui`] that has no parent, it floats on the background.
 //! It has no frame or own size. It is potentially movable.
 //! It is the foundation for windows and popups.
 
@@ -7,7 +7,7 @@ use std::{fmt::Debug, hash::Hash};
 use crate::*;
 
 /// State that is persisted between frames.
-// TODO: this is not currently stored in `memory().data`, but maybe it should be?
+// TODO(emilk): this is not currently stored in `memory().data`, but maybe it should be?
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
@@ -40,6 +40,7 @@ impl State {
 ///         ui.label("Floating text!");
 ///     });
 /// # });
+/// ```
 #[must_use = "You should call .show()"]
 #[derive(Clone, Copy, Debug)]
 pub struct Area {

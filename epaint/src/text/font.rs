@@ -1,11 +1,12 @@
 use crate::{
-    mutex::{Arc, Mutex, RwLock},
+    mutex::{Mutex, RwLock},
     text::FontDefinitions,
     TextureAtlas,
 };
 use ahash::AHashMap;
 use emath::{vec2, Vec2};
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use super::FontsManager;
 
@@ -68,7 +69,7 @@ pub struct FontImpl {
     // move each character by this much (hack)
     y_offset: f32,
     pixels_per_point: f32,
-    glyph_info_cache: RwLock<AHashMap<char, GlyphInfo>>, // TODO: standard Mutex
+    glyph_info_cache: RwLock<AHashMap<char, GlyphInfo>>, // TODO(emilk): standard Mutex
     atlas: Arc<Mutex<TextureAtlas>>,
 }
 
@@ -86,7 +87,7 @@ impl FontImpl {
 
         let height_in_points = scale_in_pixels as f32 / pixels_per_point;
 
-        // TODO: use these font metrics?
+        // TODO(emilk): use these font metrics?
         // use ab_glyph::ScaleFont as _;
         // let scaled = ab_glyph_font.as_scaled(scale_in_pixels as f32);
         // dbg!(scaled.ascent());
@@ -214,7 +215,6 @@ impl FontImpl {
 
 type FontIndex = usize;
 
-// TODO: rename?
 /// Wrapper over multiple `FontImpl` (e.g. a primary + fallbacks for emojis)
 pub struct FontImplManager {
     font_impl_list: Vec<Arc<FontImpl>>,
@@ -363,7 +363,7 @@ fn invisible_char(c: char) -> bool {
     // See https://github.com/emilk/egui/issues/336
 
     // From https://www.fileformat.info/info/unicode/category/Cf/list.htm
-    ('\u{200B}'..='\u{206F}').contains(&c) // TODO: heed bidi characters
+    ('\u{200B}'..='\u{206F}').contains(&c) // TODO(emilk): heed bidi characters
 }
 
 fn allocate_glyph(
@@ -392,7 +392,7 @@ fn allocate_glyph(
                 if v > 0.0 {
                     let px = glyph_pos.0 + x as usize;
                     let py = glyph_pos.1 + y as usize;
-                    image[(px, py)] = fast_round(v * 255.0);
+                    image[(px, py)] = v;
                 }
             });
 
@@ -419,8 +419,4 @@ fn allocate_glyph(
         advance_width: advance_width_in_points,
         uv_rect,
     }
-}
-
-fn fast_round(r: f32) -> u8 {
-    (r + 0.5).floor() as _ // rust does a saturating cast since 1.45
 }

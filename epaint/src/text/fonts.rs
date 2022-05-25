@@ -1,7 +1,8 @@
 use std::{collections::BTreeMap, fs};
+use std::sync::Arc;
 
 use crate::{
-    mutex::{Arc, Mutex, MutexGuard},
+    mutex::{Mutex, MutexGuard},
     text::{
         font::{FontImpl, FontImplManager},
         Galley, LayoutJob,
@@ -21,7 +22,7 @@ pub struct FontId {
 
     /// What font family to use.
     pub font_type: FontType,
-    // TODO: weight (bold), italics, …
+    // TODO(emilk): weight (bold), italics, …
 }
 
 impl Default for FontId {
@@ -36,20 +37,17 @@ impl Default for FontId {
 
 impl FontId {
     #[inline]
-    pub fn new(size: f32, family: FontType) -> Self {
-        Self {
-            size,
-            font_type: family,
-        }
+    pub const fn new(size: f32, font_type: FontType) -> Self {
+        Self { size, font_type }
     }
 
     #[inline]
-    pub fn proportional(size: f32) -> Self {
+    pub const fn proportional(size: f32) -> Self {
         Self::new(size, FontType::Proportional)
     }
 
     #[inline]
-    pub fn monospace(size: f32) -> Self {
+    pub const fn monospace(size: f32) -> Self {
         Self::new(size, FontType::Monospace)
     }
 }
@@ -58,10 +56,7 @@ impl FontId {
 impl std::hash::Hash for FontId {
     #[inline(always)]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let Self {
-            size,
-            font_type: family,
-        } = self;
+        let Self { size, font_type } = self;
         crate::f32_hash(state, *size);
         family.hash(state);
     }
@@ -255,7 +250,6 @@ pub struct FontDefinitions {
     /// When looking for a character glyph `epaint` will start with
     /// the first font and then move to the second, and so on.
     /// So the first font is the primary, and then comes a list of fallbacks in order of priority.
-    // TODO: per font size-modifier.
     pub type_fonts: BTreeMap<FontType, Vec<String>>,
 }
 
@@ -284,29 +278,29 @@ impl FontDefinitions {
 impl Default for FontDefinitions {
     fn default() -> Self {
         #[allow(unused)]
-        let mut font_data: BTreeMap<String, FontData> = BTreeMap::new();
+        let mut font_data_map: BTreeMap<String, FontData> = BTreeMap::new();
 
         let mut families = BTreeMap::new();
 
         #[cfg(feature = "default_fonts")]
         {
-            font_data.insert(
+            font_data_map.insert(
                 "Hack".to_owned(),
                 FontData::from_static(include_bytes!("../../fonts/Hack-Regular.ttf")),
             );
-            font_data.insert(
+            font_data_map.insert(
                 "Ubuntu-Light".to_owned(),
                 FontData::from_static(include_bytes!("../../fonts/Ubuntu-Light.ttf")),
             );
 
             // Some good looking emojis. Use as first priority:
-            font_data.insert(
+            font_data_map.insert(
                 "NotoEmoji-Regular".to_owned(),
                 FontData::from_static(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")),
             );
 
             // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
-            font_data.insert(
+            font_data_map.insert(
                 "emoji-icon-font".to_owned(),
                 FontData::from_static(include_bytes!("../../fonts/emoji-icon-font.ttf")).tweak(
                     FontTweak {
@@ -343,8 +337,8 @@ impl Default for FontDefinitions {
         }
 
         Self {
-            font_data_map: font_data,
-            type_fonts: families,
+            font_data_map,
+            type_fonts,
         }
     }
 }
@@ -353,12 +347,13 @@ impl Default for FontDefinitions {
 
 /// The collection of fonts used by `epaint`.
 ///
-/// Required in order to paint text.
-/// Create one and reuse. Cheap to clone.
+/// Required in order to paint text. Create one and reuse. Cheap to clone.
+///
+/// Each [`Fonts`] comes with a font atlas textures that needs to be used when painting.
+///
+/// If you are using `egui`, use `egui::Context::set_fonts` and `egui::Context::fonts`.
 ///
 /// You need to call [`Self::begin_frame`] and [`Self::font_image_delta`] once every frame.
-///
-/// Wrapper for `Arc<Mutex<FontsAndCache>>`.
 pub struct FontPaintManager(Arc<Mutex<FontManagerAndGallyCache>>);
 
 impl FontPaintManager {
@@ -429,6 +424,12 @@ impl FontPaintManager {
     #[inline]
     pub fn max_texture_side(&self) -> usize {
         self.lock().font_manager.max_texture_side
+    }
+
+    /// The font atlas.
+    /// Pass this to [`crate::Tessellator`].
+    pub fn texture_atlas(&self) -> Arc<Mutex<TextureAtlas>> {
+        self.lock().fonts.atlas.clone()
     }
 
     /// Current size of the font image.
@@ -572,14 +573,7 @@ impl FontsManager {
 
         let texture_width = max_texture_side.at_most(8 * 1024);
         let initial_height = 64;
-        let mut atlas = TextureAtlas::new([texture_width, initial_height]);
-
-        {
-            // Make the top left pixel fully white:
-            let (pos, image) = atlas.allocate((1, 1));
-            assert_eq!(pos, (0, 0));
-            image[pos] = 255;
-        }
+        let atlas = TextureAtlas::new([texture_width, initial_height]);
 
         let atlas = Arc::new(Mutex::new(atlas));
 
@@ -764,7 +758,7 @@ struct FontsImplCache {
     pixels_per_point: f32,
     ab_glyph_fonts: BTreeMap<String, (FontTweak, ab_glyph::FontArc)>,
 
-    /// Map font pixel sizes and names to the cached `FontImpl`.
+    /// Map font pixel sizes and names to the cached [`FontImpl`].
     cache: ahash::AHashMap<(u32, String), Arc<FontImpl>>,
 }
 

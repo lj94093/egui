@@ -5,6 +5,12 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 ## Unreleased
 
 
+## 0.18.0 - 2022-04-30
+* Remove "epi" feature ([#1361](https://github.com/emilk/egui/pull/1361)).
+* Remove need for `trait epi::NativeTexture` to use the `fn register_native_texture/replace_native_texture` ([#1361](https://github.com/emilk/egui/pull/1361)).
+* MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
+
+
 ## 0.17.0 - 2022-02-22
 * `EguiGlium::run` no longer returns the shapes to paint, but stores them internally until you call `EguiGlium::paint` ([#1110](https://github.com/emilk/egui/pull/1110)).
 * Optimize the painter and texture uploading ([#1110](https://github.com/emilk/egui/pull/1110)).

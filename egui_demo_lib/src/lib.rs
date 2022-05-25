@@ -1,108 +1,27 @@
 //! Demo-code for showing how egui is used.
 //!
-//! The demo-code is also used in benchmarks and tests.
+//! This library can be used to test 3rd party egui integrations (see for instance <https://github.com/not-fl3/egui-miniquad/blob/master/examples/demo.rs>).
+//!
+//! The demo is also used in benchmarks and tests.
 
-// Forbid warnings in release builds:
-#![cfg_attr(not(debug_assertions), deny(warnings))]
-#![forbid(unsafe_code)]
-#![warn(
-    clippy::all,
-    clippy::await_holding_lock,
-    clippy::char_lit_as_u8,
-    clippy::checked_conversions,
-    clippy::dbg_macro,
-    clippy::debug_assert_with_mut_call,
-    clippy::disallowed_method,
-    clippy::doc_markdown,
-    clippy::empty_enum,
-    clippy::enum_glob_use,
-    clippy::exit,
-    clippy::expl_impl_clone_on_copy,
-    clippy::explicit_deref_methods,
-    clippy::explicit_into_iter_loop,
-    clippy::fallible_impl_from,
-    clippy::filter_map_next,
-    clippy::flat_map_option,
-    clippy::float_cmp_const,
-    clippy::fn_params_excessive_bools,
-    clippy::from_iter_instead_of_collect,
-    clippy::if_let_mutex,
-    clippy::implicit_clone,
-    clippy::imprecise_flops,
-    clippy::inefficient_to_string,
-    clippy::invalid_upcast_comparisons,
-    clippy::large_digit_groups,
-    clippy::large_stack_arrays,
-    clippy::large_types_passed_by_value,
-    clippy::let_unit_value,
-    clippy::linkedlist,
-    clippy::lossy_float_literal,
-    clippy::macro_use_imports,
-    clippy::manual_ok_or,
-    clippy::map_err_ignore,
-    clippy::map_flatten,
-    clippy::map_unwrap_or,
-    clippy::match_on_vec_items,
-    clippy::match_same_arms,
-    clippy::match_wild_err_arm,
-    clippy::match_wildcard_for_single_variants,
-    clippy::mem_forget,
-    clippy::mismatched_target_os,
-    clippy::missing_errors_doc,
-    clippy::missing_safety_doc,
-    clippy::mut_mut,
-    clippy::mutex_integer,
-    clippy::needless_borrow,
-    clippy::needless_continue,
-    clippy::needless_for_each,
-    clippy::needless_pass_by_value,
-    clippy::option_option,
-    clippy::path_buf_push_overwrite,
-    clippy::ptr_as_ptr,
-    clippy::ref_option_ref,
-    clippy::rest_pat_in_fully_bound_structs,
-    clippy::same_functions_in_if_condition,
-    clippy::semicolon_if_nothing_returned,
-    clippy::single_match_else,
-    clippy::string_add_assign,
-    clippy::string_add,
-    clippy::string_lit_as_bytes,
-    clippy::string_to_string,
-    clippy::todo,
-    clippy::trait_duplication_in_bounds,
-    clippy::unimplemented,
-    clippy::unnested_or_patterns,
-    clippy::unused_self,
-    clippy::useless_transmute,
-    clippy::verbose_file_reads,
-    clippy::zero_sized_map_values,
-    future_incompatible,
-    nonstandard_style,
-    rust_2018_idioms,
-    rustdoc::missing_crate_level_docs
-)]
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
-mod apps;
-mod backend_panel;
+mod color_test;
+mod demo;
 pub mod easy_mark;
-pub(crate) mod frame_history;
 pub mod syntax_highlighting;
-mod wrap_app;
 
-pub use apps::ColorTest; // used for tests
-pub use apps::DemoWindows; // used for tests
-pub use wrap_app::WrapApp;
+pub use color_test::ColorTest;
+pub use demo::DemoWindows;
 
 // ----------------------------------------------------------------------------
 
-/// Create a [`Hyperlink`](crate::Hyperlink) to this egui source code file on github.
-#[doc(hidden)]
+/// Create a [`Hyperlink`](egui::Hyperlink) to this egui source code file on github.
 #[macro_export]
-macro_rules! __egui_github_link_file {
+macro_rules! egui_github_link_file {
     () => {
-        crate::__egui_github_link_file!("(source code)")
+        $crate::egui_github_link_file!("(source code)")
     };
     ($label: expr) => {
         egui::github_link_file!(
@@ -112,12 +31,11 @@ macro_rules! __egui_github_link_file {
     };
 }
 
-/// Create a [`Hyperlink`](crate::Hyperlink) to this egui source code file and line on github.
-#[doc(hidden)]
+/// Create a [`Hyperlink`](egui::Hyperlink) to this egui source code file and line on github.
 #[macro_export]
-macro_rules! __egui_github_link_file_line {
+macro_rules! egui_github_link_file_line {
     () => {
-        crate::__egui_github_link_file_line!("(source code)")
+        $crate::egui_github_link_file_line!("(source code)")
     };
     ($label: expr) => {
         egui::github_link_file_line!(
@@ -148,8 +66,8 @@ fn test_egui_e2e() {
         let full_output = ctx.run(raw_input.clone(), |ctx| {
             demo_windows.ui(ctx);
         });
-        let clipped_meshes = ctx.tessellate(full_output.shapes);
-        assert!(!clipped_meshes.is_empty());
+        let clipped_primitives = ctx.tessellate(full_output.shapes);
+        assert!(!clipped_primitives.is_empty());
     }
 }
 
@@ -167,23 +85,19 @@ fn test_egui_zero_window_size() {
         let full_output = ctx.run(raw_input.clone(), |ctx| {
             demo_windows.ui(ctx);
         });
-        let clipped_meshes = ctx.tessellate(full_output.shapes);
-        assert!(clipped_meshes.is_empty(), "There should be nothing to show");
+        let clipped_primitives = ctx.tessellate(full_output.shapes);
+        assert!(
+            clipped_primitives.is_empty(),
+            "There should be nothing to show"
+        );
     }
 }
 
 // ----------------------------------------------------------------------------
 
-/// Time of day as seconds since midnight. Used for clock in demo app.
-pub(crate) fn seconds_since_midnight() -> Option<f64> {
-    #[cfg(feature = "chrono")]
-    {
-        use chrono::Timelike;
-        let time = chrono::Local::now().time();
-        let seconds_since_midnight =
-            time.num_seconds_from_midnight() as f64 + 1e-9 * (time.nanosecond() as f64);
-        Some(seconds_since_midnight)
-    }
-    #[cfg(not(feature = "chrono"))]
-    None
+/// Detect narrow screens. This is used to show a simpler UI on mobile devices,
+/// especially for the web demo at <https://egui.rs>.
+pub fn is_mobile(ctx: &egui::Context) -> bool {
+    let screen_size = ctx.input().screen_rect().size();
+    screen_size.x < 550.0
 }
