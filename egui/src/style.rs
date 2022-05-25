@@ -2,7 +2,7 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use crate::{color::*, emath::*, FontFamily, FontId, Response, RichText, WidgetText};
+use crate::{color::*, emath::*, FontId, FontType, Response, RichText, WidgetText};
 use epaint::{mutex::Arc, Rounding, Shadow, Stroke};
 use std::collections::BTreeMap;
 
@@ -530,23 +530,14 @@ pub struct DebugOptions {
 /// The default text styles of the default egui theme.
 pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
     let mut text_styles = BTreeMap::new();
-    text_styles.insert(
-        TextStyle::Small,
-        FontId::new(10.0, FontFamily::Proportional),
-    );
-    text_styles.insert(TextStyle::Body, FontId::new(14.0, FontFamily::Proportional));
-    text_styles.insert(
-        TextStyle::Button,
-        FontId::new(14.0, FontFamily::Proportional),
-    );
+    text_styles.insert(TextStyle::Small, FontId::new(10.0, FontType::Proportional));
+    text_styles.insert(TextStyle::Body, FontId::new(14.0, FontType::Proportional));
+    text_styles.insert(TextStyle::Button, FontId::new(14.0, FontType::Proportional));
     text_styles.insert(
         TextStyle::Heading,
-        FontId::new(20.0, FontFamily::Proportional),
+        FontId::new(20.0, FontType::Proportional),
     );
-    text_styles.insert(
-        TextStyle::Monospace,
-        FontId::new(14.0, FontFamily::Monospace),
-    );
+    text_styles.insert(TextStyle::Monospace, FontId::new(14.0, FontType::Monospace));
     text_styles
 }
 

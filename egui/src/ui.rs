@@ -4,8 +4,8 @@ use epaint::mutex::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::hash::Hash;
 
 use crate::{
-    color::*, containers::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
-    widgets::*, *,
+    color::*, containers::*, epaint::text::FontPaintManager, layout::*, menu::MenuState,
+    placer::Placer, widgets::*, *,
 };
 
 // ----------------------------------------------------------------------------
@@ -376,7 +376,7 @@ impl Ui {
     /// The [`Fonts`] of the [`Context`] associated with this ui.
     /// Equivalent to `.ctx().fonts()`.
     #[inline]
-    pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
+    pub fn fonts(&self) -> RwLockReadGuard<'_, FontPaintManager> {
         self.ctx().fonts()
     }
 

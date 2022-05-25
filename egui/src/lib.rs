@@ -384,7 +384,7 @@ pub use epaint::emath;
 pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2};
 pub use epaint::{
     color, mutex,
-    text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
+    text::{FontData, FontDefinitions, FontId, FontTweak, FontType},
     textures::TexturesDelta,
     AlphaImage, ClippedMesh, Color32, ColorImage, ImageData, Mesh, Rgba, Rounding, Shape, Stroke,
     TextureHandle, TextureId,
@@ -392,8 +392,8 @@ pub use epaint::{
 
 pub mod text {
     pub use epaint::text::{
-        FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob, LayoutSection, TextFormat,
-        TAB_SIZE,
+        FontData, FontDefinitions, FontPaintManager, FontType, Galley, LayoutJob, LayoutSection,
+        TextFormat, TAB_SIZE,
     };
 }
 

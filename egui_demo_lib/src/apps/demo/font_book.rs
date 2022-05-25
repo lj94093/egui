@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 pub struct FontBook {
     filter: String,
     font_id: egui::FontId,
-    named_chars: BTreeMap<egui::FontFamily, BTreeMap<char, String>>,
+    named_chars: BTreeMap<egui::FontType, BTreeMap<char, String>>,
 }
 
 impl Default for FontBook {
@@ -38,7 +38,7 @@ impl super::View for FontBook {
         ui.label(format!(
             "The selected font supports {} characters.",
             self.named_chars
-                .get(&self.font_id.family)
+                .get(&self.font_id.font_type)
                 .map(|map| map.len())
                 .unwrap_or_default()
         ));
@@ -69,8 +69,8 @@ impl super::View for FontBook {
         let filter = &self.filter;
         let named_chars = self
             .named_chars
-            .entry(self.font_id.family.clone())
-            .or_insert_with(|| available_characters(ui, self.font_id.family.clone()));
+            .entry(self.font_id.font_type.clone())
+            .or_insert_with(|| available_characters(ui, self.font_id.font_type.clone()));
 
         ui.separator();
 
@@ -102,10 +102,10 @@ impl super::View for FontBook {
     }
 }
 
-fn available_characters(ui: &egui::Ui, family: egui::FontFamily) -> BTreeMap<char, String> {
+fn available_characters(ui: &egui::Ui, family: egui::FontType) -> BTreeMap<char, String> {
     ui.fonts()
         .lock()
-        .fonts
+        .font_manager
         .font(&egui::FontId::new(10.0, family)) // size is arbitrary for getting the characters
         .characters()
         .iter()

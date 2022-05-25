@@ -1,6 +1,6 @@
 use std::ops::RangeInclusive;
 
-use super::{FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, Row, RowVisuals};
+use super::{FontsManager, Galley, Glyph, LayoutJob, LayoutSection, Row, RowVisuals};
 use crate::{mutex::Arc, Color32, Mesh, Stroke, Vertex};
 use emath::*;
 
@@ -50,7 +50,7 @@ struct Paragraph {
 ///
 /// In most cases you should use [`crate::Fonts::layout_job`] instead
 /// since that memoizes the input, making subsequent layouting of the same text much faster.
-pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
+pub fn layout(fonts: &mut FontsManager, job: Arc<LayoutJob>) -> Galley {
     let mut paragraphs = vec![Paragraph::default()];
     for (section_index, section) in job.sections.iter().enumerate() {
         layout_section(fonts, &job, section_index as u32, section, &mut paragraphs);
@@ -75,7 +75,7 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
 }
 
 fn layout_section(
-    fonts: &mut FontsImpl,
+    fonts_manager: &mut FontsManager,
     job: &LayoutJob,
     section_index: u32,
     section: &LayoutSection,
@@ -86,7 +86,11 @@ fn layout_section(
         byte_range,
         format,
     } = section;
-    let font = fonts.font(&format.font_id);
+
+    #[cfg(feature = "system_fonts")]
+    fonts_manager.ensure_correct_fonts_for_text(&job.text, &format.font_id);
+
+    let font = fonts_manager.font(&format.font_id);
     let font_height = font.row_height();
 
     let mut paragraph = out_paragraphs.last_mut().unwrap();

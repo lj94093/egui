@@ -114,7 +114,7 @@ pub use {
     stats::PaintStats,
     stroke::Stroke,
     tessellator::{tessellate_shapes, TessellationOptions, Tessellator},
-    text::{FontFamily, FontId, Fonts, Galley},
+    text::{FontId, FontPaintManager, FontType, Galley},
     texture_atlas::TextureAtlas,
     texture_handle::TextureHandle,
     textures::TextureManager,

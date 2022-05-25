@@ -1,5 +1,5 @@
 use crate::{
-    text::{FontId, Fonts, Galley},
+    text::{FontId, FontPaintManager, Galley},
     Color32, Mesh, Stroke,
 };
 use crate::{CubicBezierShape, QuadraticBezierShape};
@@ -149,7 +149,7 @@ impl Shape {
 
     #[allow(clippy::needless_pass_by_value)]
     pub fn text(
-        fonts: &Fonts,
+        fonts: &FontPaintManager,
         pos: Pos2,
         anchor: Align2,
         text: impl ToString,

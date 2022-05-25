@@ -1,10 +1,13 @@
 use crate::{
     mutex::{Arc, Mutex, RwLock},
+    text::FontDefinitions,
     TextureAtlas,
 };
 use ahash::AHashMap;
 use emath::{vec2, Vec2};
 use std::collections::BTreeSet;
+
+use super::FontsManager;
 
 // ----------------------------------------------------------------------------
 
@@ -213,8 +216,8 @@ type FontIndex = usize;
 
 // TODO: rename?
 /// Wrapper over multiple `FontImpl` (e.g. a primary + fallbacks for emojis)
-pub struct Font {
-    fonts: Vec<Arc<FontImpl>>,
+pub struct FontImplManager {
+    font_impl_list: Vec<Arc<FontImpl>>,
     /// Lazily calculated.
     characters: Option<std::collections::BTreeSet<char>>,
     replacement_glyph: (FontIndex, GlyphInfo),
@@ -223,11 +226,11 @@ pub struct Font {
     glyph_info_cache: AHashMap<char, (FontIndex, GlyphInfo)>,
 }
 
-impl Font {
+impl FontImplManager {
     pub fn new(fonts: Vec<Arc<FontImpl>>) -> Self {
         if fonts.is_empty() {
             return Self {
-                fonts,
+                font_impl_list: fonts,
                 characters: None,
                 replacement_glyph: Default::default(),
                 pixels_per_point: 1.0,
@@ -240,7 +243,7 @@ impl Font {
         let row_height = fonts[0].row_height();
 
         let mut slf = Self {
-            fonts,
+            font_impl_list: fonts,
             characters: None,
             replacement_glyph: Default::default(),
             pixels_per_point,
@@ -280,7 +283,7 @@ impl Font {
     pub fn characters(&mut self) -> &BTreeSet<char> {
         self.characters.get_or_insert_with(|| {
             let mut characters = BTreeSet::new();
-            for font in &self.fonts {
+            for font in &self.font_impl_list {
                 characters.extend(font.characters());
             }
             characters
@@ -310,6 +313,18 @@ impl Font {
         self.glyph_info(c).1.advance_width
     }
 
+    pub fn has_glyph_info_and_cache(&mut self, c: char) -> bool {
+        if let Some(font_index_glyph_info) = self.glyph_info_cache.get(&c) {
+            return true;
+        }
+
+        return self.glyph_info_no_cache_or_fallback(c).is_some();
+    }
+
+    pub fn push_font_impl(&mut self, new_font_impl: Arc<FontImpl>) {
+        self.font_impl_list.push(new_font_impl);
+    }
+
     /// `\n` will (intentionally) show up as the replacement character.
     fn glyph_info(&mut self, c: char) -> (FontIndex, GlyphInfo) {
         if let Some(font_index_glyph_info) = self.glyph_info_cache.get(&c) {
@@ -324,16 +339,16 @@ impl Font {
 
     #[inline]
     pub(crate) fn glyph_info_and_font_impl(&mut self, c: char) -> (Option<&FontImpl>, GlyphInfo) {
-        if self.fonts.is_empty() {
+        if self.font_impl_list.is_empty() {
             return (None, self.replacement_glyph.1);
         }
         let (font_index, glyph_info) = self.glyph_info(c);
-        let font_impl = &self.fonts[font_index];
+        let font_impl = &self.font_impl_list[font_index];
         (Some(font_impl), glyph_info)
     }
 
     fn glyph_info_no_cache_or_fallback(&mut self, c: char) -> Option<(FontIndex, GlyphInfo)> {
-        for (font_index, font_impl) in self.fonts.iter().enumerate() {
+        for (font_index, font_impl) in self.font_impl_list.iter().enumerate() {
             if let Some(glyph_info) = font_impl.glyph_info(c) {
                 self.glyph_info_cache.insert(c, (font_index, glyph_info));
                 return Some((font_index, glyph_info));

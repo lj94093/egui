@@ -4,7 +4,7 @@ use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
     input_state::*, layers::GraphicLayers, memory::Options, output::FullOutput, TextureHandle, *,
 };
-use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
+use epaint::{mutex::*, stats::*, text::FontPaintManager, TessellationOptions, *};
 
 // ----------------------------------------------------------------------------
 
@@ -30,7 +30,7 @@ impl Default for WrappedTextureManager {
 #[derive(Default)]
 struct ContextImpl {
     /// `None` until the start of the first frame.
-    fonts: Option<Fonts>,
+    fonts: Option<FontPaintManager>,
     memory: Memory,
     animation_manager: AnimationManager,
     tex_manager: WrappedTextureManager,
@@ -82,13 +82,13 @@ impl ContextImpl {
         let max_texture_side = self.input.max_texture_side;
 
         if let Some(font_definitions) = self.memory.new_font_definitions.take() {
-            let fonts = Fonts::new(pixels_per_point, max_texture_side, font_definitions);
+            let fonts = FontPaintManager::new(pixels_per_point, max_texture_side, font_definitions);
             self.fonts = Some(fonts);
         }
 
         let fonts = self.fonts.get_or_insert_with(|| {
             let font_definitions = FontDefinitions::default();
-            Fonts::new(pixels_per_point, max_texture_side, font_definitions)
+            FontPaintManager::new(pixels_per_point, max_texture_side, font_definitions)
         });
 
         fonts.begin_frame(pixels_per_point, max_texture_side);
@@ -97,7 +97,11 @@ impl ContextImpl {
             // Preload the most common characters for the most common fonts.
             // This is not very important to do, but may a few GPU operations.
             for font_id in self.memory.options.style.text_styles.values() {
-                fonts.lock().fonts.font(font_id).preload_common_characters();
+                fonts
+                    .lock()
+                    .font_manager
+                    .font(font_id)
+                    .preload_common_characters();
             }
         }
     }
@@ -506,7 +510,7 @@ impl Context {
     /// Not valid until first call to [`Context::run()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     #[inline]
-    pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
+    pub fn fonts(&self) -> RwLockReadGuard<'_, FontPaintManager> {
         RwLockReadGuard::map(self.read(), |c| {
             c.fonts
                 .as_ref()
@@ -515,7 +519,7 @@ impl Context {
     }
 
     #[inline]
-    fn fonts_mut(&self) -> RwLockWriteGuard<'_, Option<Fonts>> {
+    fn fonts_mut(&self) -> RwLockWriteGuard<'_, Option<FontPaintManager>> {
         RwLockWriteGuard::map(self.write(), |c| &mut c.fonts)
     }
 
@@ -549,7 +553,7 @@ impl Context {
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         if let Some(current_fonts) = &*self.fonts_mut() {
             // NOTE: this comparison is expensive since it checks TTF data for equality
-            if current_fonts.lock().fonts.definitions() == &font_definitions {
+            if current_fonts.lock().font_manager.definitions() == &font_definitions {
                 return; // no change - save us from reloading font textures
             }
         }

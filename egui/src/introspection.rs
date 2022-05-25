@@ -1,7 +1,7 @@
 //! Showing UI:s for egui/epaint types.
 use crate::*;
 
-pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
+pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontType) {
     let families = ui.fonts().families();
     ui.horizontal(|ui| {
         for alternative in families {
@@ -17,7 +17,7 @@ pub fn font_id_ui(ui: &mut Ui, font_id: &mut FontId) {
         ui.add(Slider::new(&mut font_id.size, 4.0..=40.0).max_decimals(0));
         for alternative in families {
             let text = alternative.to_string();
-            ui.radio_value(&mut font_id.family, alternative, text);
+            ui.radio_value(&mut font_id.font_type, alternative, text);
         }
     });
 }

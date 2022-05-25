@@ -5,7 +5,7 @@ use crate::{
 };
 use epaint::{
     mutex::{Arc, RwLockReadGuard, RwLockWriteGuard},
-    text::{Fonts, Galley},
+    text::{FontPaintManager, Galley},
     CircleShape, RectShape, Rounding, Shape, Stroke, TextShape,
 };
 
@@ -94,7 +94,7 @@ impl Painter {
 
     /// Available fonts.
     #[inline(always)]
-    pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
+    pub fn fonts(&self) -> RwLockReadGuard<'_, FontPaintManager> {
         self.ctx.fonts()
     }
 

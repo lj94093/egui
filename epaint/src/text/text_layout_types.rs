@@ -153,7 +153,7 @@ impl LayoutJob {
     }
 
     /// The height of the tallest used font in the job.
-    pub fn font_height(&self, fonts: &crate::Fonts) -> f32 {
+    pub fn font_height(&self, fonts: &crate::FontPaintManager) -> f32 {
         let mut max_height = 0.0_f32;
         for section in &self.sections {
             max_height = max_height.max(fonts.row_height(&section.format.font_id));

@@ -1,7 +1,7 @@
 use epaint::mutex::Arc;
 
 use crate::{
-    style::WidgetVisuals, text::LayoutJob, Align, Color32, FontFamily, FontSelection, Galley, Pos2,
+    style::WidgetVisuals, text::LayoutJob, Align, Color32, FontSelection, FontType, Galley, Pos2,
     Style, TextStyle, Ui, Visuals,
 };
 
@@ -24,7 +24,7 @@ use crate::{
 pub struct RichText {
     text: String,
     size: Option<f32>,
-    family: Option<FontFamily>,
+    family: Option<FontType>,
     text_style: Option<TextStyle>,
     background_color: Color32,
     text_color: Option<Color32>,
@@ -98,7 +98,7 @@ impl RichText {
     ///
     /// Only the families available in [`crate::FontDefinitions::families`] may be used.
     #[inline]
-    pub fn family(mut self, family: FontFamily) -> Self {
+    pub fn family(mut self, family: FontType) -> Self {
         self.family = Some(family);
         self
     }
@@ -107,7 +107,10 @@ impl RichText {
     /// This overrides the value from [`Self::text_style`].
     #[inline]
     pub fn font(mut self, font_id: crate::FontId) -> Self {
-        let crate::FontId { size, family } = font_id;
+        let crate::FontId {
+            size,
+            font_type: family,
+        } = font_id;
         self.size = Some(size);
         self.family = Some(family);
         self
@@ -219,7 +222,7 @@ impl RichText {
     }
 
     /// Read the font height of the selected text style.
-    pub fn font_height(&self, fonts: &epaint::Fonts, style: &Style) -> f32 {
+    pub fn font_height(&self, fonts: &epaint::FontPaintManager, style: &Style) -> f32 {
         let mut font_id = self.text_style.as_ref().map_or_else(
             || FontSelection::Default.resolve(style),
             |text_style| text_style.resolve(style),
@@ -229,7 +232,7 @@ impl RichText {
             font_id.size = size;
         }
         if let Some(family) = &self.family {
-            font_id.family = family.clone();
+            font_id.font_type = family.clone();
         }
         fonts.row_height(&font_id)
     }
@@ -273,7 +276,7 @@ impl RichText {
                 font_id.size = size;
             }
             if let Some(family) = family {
-                font_id.family = family;
+                font_id.font_type = family;
             }
             font_id
         };
@@ -510,7 +513,7 @@ impl WidgetText {
         }
     }
 
-    pub(crate) fn font_height(&self, fonts: &epaint::Fonts, style: &Style) -> f32 {
+    pub(crate) fn font_height(&self, fonts: &epaint::FontPaintManager, style: &Style) -> f32 {
         match self {
             Self::RichText(text) => text.font_height(fonts, style),
             Self::LayoutJob(job) => job.font_height(fonts),
@@ -635,7 +638,7 @@ pub struct WidgetTextJob {
 }
 
 impl WidgetTextJob {
-    pub fn into_galley(self, fonts: &crate::text::Fonts) -> WidgetTextGalley {
+    pub fn into_galley(self, fonts: &crate::text::FontPaintManager) -> WidgetTextGalley {
         let Self { job, job_has_color } = self;
         let galley = fonts.layout_job(job);
         WidgetTextGalley {
