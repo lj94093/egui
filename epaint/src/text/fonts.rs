@@ -1,5 +1,7 @@
-use std::{collections::BTreeMap, fs};
+#[cfg(feature = "system_fonts")]
+use font_kit::family_handle::FamilyHandle;
 use std::sync::Arc;
+use std::{collections::BTreeMap, fs};
 
 use crate::{
     mutex::{Mutex, MutexGuard},
@@ -58,7 +60,7 @@ impl std::hash::Hash for FontId {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let Self { size, font_type } = self;
         crate::f32_hash(state, *size);
-        family.hash(state);
+        font_type.hash(state);
     }
 }
 
@@ -280,7 +282,7 @@ impl Default for FontDefinitions {
         #[allow(unused)]
         let mut font_data_map: BTreeMap<String, FontData> = BTreeMap::new();
 
-        let mut families = BTreeMap::new();
+        let mut type_fonts = BTreeMap::new();
 
         #[cfg(feature = "default_fonts")]
         {
@@ -311,7 +313,7 @@ impl Default for FontDefinitions {
                 ),
             );
 
-            families.insert(
+            type_fonts.insert(
                 FontType::Monospace,
                 vec![
                     "Hack".to_owned(),
@@ -320,7 +322,7 @@ impl Default for FontDefinitions {
                     "emoji-icon-font".to_owned(),
                 ],
             );
-            families.insert(
+            type_fonts.insert(
                 FontType::Proportional,
                 vec![
                     "Ubuntu-Light".to_owned(),
@@ -429,7 +431,7 @@ impl FontPaintManager {
     /// The font atlas.
     /// Pass this to [`crate::Tessellator`].
     pub fn texture_atlas(&self) -> Arc<Mutex<TextureAtlas>> {
-        self.lock().fonts.atlas.clone()
+        self.lock().font_manager.atlas.clone()
     }
 
     /// Current size of the font image.
@@ -641,7 +643,7 @@ impl FontsManager {
 
     #[cfg(feature = "system_fonts")]
     pub fn ensure_correct_fonts_for_text(&mut self, text: &String, main_font_id: &FontId) {
-        use font_kit::{family_handle::FamilyHandle, handle::Handle};
+        use font_kit::handle::Handle;
         let FontId { size, font_type } = main_font_id;
         let scale_in_pixels = self.fonts_impl_cache.scale_as_pixels(*size);
 

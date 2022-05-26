@@ -143,7 +143,7 @@ fn rect_from_x_range(x_range: RangeInclusive<f32>) -> Rect {
 }
 
 fn rows_from_paragraphs(
-    fonts: &mut FontsImpl,
+    fonts: &mut FontsManager,
     paragraphs: Vec<Paragraph>,
     job: &LayoutJob,
 ) -> Vec<Row> {
@@ -186,7 +186,7 @@ fn rows_from_paragraphs(
 }
 
 fn line_break(
-    fonts: &mut FontsImpl,
+    fonts: &mut FontsManager,
     paragraph: &Paragraph,
     job: &LayoutJob,
     out_rows: &mut Vec<Row>,
@@ -282,7 +282,7 @@ fn line_break(
 }
 
 fn replace_last_glyph_with_overflow_character(
-    fonts: &mut FontsImpl,
+    fonts: &mut FontsManager,
     job: &LayoutJob,
     row: &mut Row,
 ) {
