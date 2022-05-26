@@ -326,7 +326,7 @@ pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos
 pub use epaint::hex_color;
 pub use epaint::{
     color, mutex,
-    text::{FontData, FontDefinitions, FontType, FontId, FontTweak},
+    text::{FontData, FontDefinitions, FontId, FontTweak, FontType},
     textures::{TextureFilter, TexturesDelta},
     ClippedPrimitive, Color32, ColorImage, FontImage, ImageData, Mesh, PaintCallback,
     PaintCallbackInfo, Rgba, Rounding, Shape, Stroke, TextureHandle, TextureId,
@@ -335,7 +335,7 @@ pub use epaint::{
 pub mod text {
     pub use crate::text_edit::CCursorRange;
     pub use epaint::text::{
-        cursor::CCursor, FontData, FontDefinitions, FontType, FontPaintManager, Galley, LayoutJob,
+        cursor::CCursor, FontData, FontDefinitions, FontPaintManager, FontType, Galley, LayoutJob,
         LayoutSection, TextFormat, TAB_SIZE,
     };
 }

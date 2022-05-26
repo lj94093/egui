@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use eframe::egui;
-use egui::{FontFamily, FontId, RichText, TextStyle};
+use egui::{FontId, FontType, RichText, TextStyle};
 
 #[inline]
 fn heading2() -> TextStyle {
@@ -14,7 +14,7 @@ fn heading3() -> TextStyle {
 }
 
 fn configure_text_styles(ctx: &egui::Context) {
-    use FontFamily::Proportional;
+    use FontType::Proportional;
 
     let mut style = (*ctx.style()).clone();
     style.text_styles = [

@@ -5,7 +5,9 @@ use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
     input_state::*, layers::GraphicLayers, memory::Options, output::FullOutput, TextureHandle, *,
 };
-use epaint::{mutex::*, stats::*, text::FontPaintManager, textures::TextureFilter, TessellationOptions, *};
+use epaint::{
+    mutex::*, stats::*, text::FontPaintManager, textures::TextureFilter, TessellationOptions, *,
+};
 
 // ----------------------------------------------------------------------------
 

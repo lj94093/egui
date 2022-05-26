@@ -1,14 +1,11 @@
 use crate::{
     mutex::{Mutex, RwLock},
-    text::FontDefinitions,
     TextureAtlas,
 };
 use ahash::AHashMap;
 use emath::{vec2, Vec2};
 use std::collections::BTreeSet;
 use std::sync::Arc;
-
-use super::FontsManager;
 
 // ----------------------------------------------------------------------------
 
@@ -314,11 +311,11 @@ impl FontImplManager {
     }
 
     pub fn has_glyph_info_and_cache(&mut self, c: char) -> bool {
-        if let Some(font_index_glyph_info) = self.glyph_info_cache.get(&c) {
+        if let Some(_font_index_glyph_info) = self.glyph_info_cache.get(&c) {
             return true;
         }
 
-        return self.glyph_info_no_cache_or_fallback(c).is_some();
+        self.glyph_info_no_cache_or_fallback(c).is_some()
     }
 
     pub fn push_font_impl(&mut self, new_font_impl: Arc<FontImpl>) {

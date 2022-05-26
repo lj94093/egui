@@ -2,7 +2,7 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use crate::{color::*, emath::*, FontType, FontId, Response, RichText, WidgetText};
+use crate::{color::*, emath::*, FontId, FontType, Response, RichText, WidgetText};
 use epaint::{Rounding, Shadow, Stroke};
 use std::collections::BTreeMap;
 

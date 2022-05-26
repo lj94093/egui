@@ -1,7 +1,9 @@
 #[cfg(feature = "system_fonts")]
 use font_kit::family_handle::FamilyHandle;
+use std::collections::BTreeMap;
+#[cfg(feature = "system_fonts")]
+use std::fs;
 use std::sync::Arc;
-use std::{collections::BTreeMap, fs};
 
 use crate::{
     mutex::{Mutex, MutexGuard},
@@ -260,7 +262,6 @@ impl FontDefinitions {
     pub fn query_fonts_for_character(c: char) -> Option<FamilyHandle> {
         use font_kit::source::SystemSource;
         use skia_safe::{FontMgr, FontStyle};
-        use std::fs;
 
         let source = SystemSource::new();
         let font_mgr = FontMgr::new();
@@ -642,63 +643,60 @@ impl FontsManager {
     }
 
     #[cfg(feature = "system_fonts")]
-    pub fn ensure_correct_fonts_for_text(&mut self, text: &String, main_font_id: &FontId) {
+    pub fn ensure_correct_fonts_for_text(&mut self, text: &str, main_font_id: &FontId) {
         use font_kit::handle::Handle;
-        let FontId { size, font_type } = main_font_id;
+        let FontId { size, font_type: _ } = main_font_id;
         let scale_in_pixels = self.fonts_impl_cache.scale_as_pixels(*size);
 
         let mut font_impl_manager = self.font(main_font_id);
         for c in text.chars() {
             if font_impl_manager.has_glyph_info_and_cache(c) {
                 continue;
-            } else {
-                if let Some(fonts) = FontDefinitions::query_fonts_for_character(c) {
-                    for font in fonts.fonts() {
-                        if let Handle::Path {
-                            path,
-                            font_index: _,
-                        } = font
-                        {
-                            if let Ok(buf) = fs::read(path) {
-                                let new_font_name =
-                                    path.file_name().unwrap().to_str().unwrap().to_string();
-                                // update FontData
-                                let font_data = self
-                                    .definitions
-                                    .font_data_map
-                                    .entry(new_font_name.clone())
-                                    .or_insert(FontData::from_owned(buf));
+            }
+            if let Some(fonts) = FontDefinitions::query_fonts_for_character(c) {
+                for font in fonts.fonts() {
+                    if let Handle::Path {
+                        path,
+                        font_index: _,
+                    } = font
+                    {
+                        if let Ok(buf) = fs::read(path) {
+                            let new_font_name =
+                                path.file_name().unwrap().to_str().unwrap().to_string();
+                            // update FontData
+                            let font_data = self
+                                .definitions
+                                .font_data_map
+                                .entry(new_font_name.clone())
+                                .or_insert_with(|| FontData::from_owned(buf));
 
-                                self.definitions
-                                    .type_fonts
-                                    .entry(FontType::Monospace)
-                                    .or_default()
-                                    .push(new_font_name.clone());
-                                self.definitions
-                                    .type_fonts
-                                    .entry(FontType::Proportional)
-                                    .or_default()
-                                    .push(new_font_name.clone());
-                                // update fonts_impl_cache
-                                let ab_glyph =
-                                    ab_glyph_font_from_font_data(&new_font_name, font_data);
-                                let tweak = font_data.tweak;
-                                self.fonts_impl_cache
-                                    .ab_glyph_fonts
-                                    .insert(new_font_name.clone(), (tweak, ab_glyph));
-                                // update fonts_impl_cache
-                                let new_font_impl = self
-                                    .fonts_impl_cache
-                                    .font_impl(scale_in_pixels, &new_font_name);
-                                font_impl_manager = self.font(main_font_id);
-                                font_impl_manager.push_font_impl(new_font_impl);
-                            }
+                            self.definitions
+                                .type_fonts
+                                .entry(FontType::Monospace)
+                                .or_default()
+                                .push(new_font_name.clone());
+                            self.definitions
+                                .type_fonts
+                                .entry(FontType::Proportional)
+                                .or_default()
+                                .push(new_font_name.clone());
+                            // update fonts_impl_cache
+                            let ab_glyph = ab_glyph_font_from_font_data(&new_font_name, font_data);
+                            let tweak = font_data.tweak;
+                            self.fonts_impl_cache
+                                .ab_glyph_fonts
+                                .insert(new_font_name.clone(), (tweak, ab_glyph));
+                            // update fonts_impl_cache
+                            let new_font_impl = self
+                                .fonts_impl_cache
+                                .font_impl(scale_in_pixels, &new_font_name);
+                            font_impl_manager = self.font(main_font_id);
+                            font_impl_manager.push_font_impl(new_font_impl);
                         }
                     }
                 }
             }
         }
-        return;
     }
 }
 
